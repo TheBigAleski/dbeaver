@@ -14,20 +14,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.jkiss.dbeaver.ui.controls.resultset;
 
-import org.eclipse.swt.widgets.Control;
-import org.jkiss.code.Nullable;
+public class ResultSetPasteSettings {
+    private boolean useNullsInsteadOfEmptyValues = false;
+    private boolean splitRowsAtNewLine = true;
 
-/**
- * Result set editable presentation.
- */
-public interface IResultSetEditor {
+    public boolean isUseNullsInsteadOfEmptyValues() {
+        return useNullsInsteadOfEmptyValues;
+    }
 
-    @Nullable
-    Control openValueEditor(final boolean inline);
+    public void setUseNullsInsteadOfEmptyValues(boolean useNullsInsteadOfEmptyValues) {
+        this.useNullsInsteadOfEmptyValues = useNullsInsteadOfEmptyValues;
+    }
 
-    void pasteFromClipboard(@Nullable ResultSetPasteSettings settings);
+    public boolean isSplitRowsAtNewLine() {
+        return splitRowsAtNewLine;
+    }
 
+    public void setSplitRowsAtNewLine(boolean splitRowsAtNewLine) {
+        this.splitRowsAtNewLine = splitRowsAtNewLine;
+    }
 }
