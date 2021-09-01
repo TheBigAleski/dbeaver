@@ -18,6 +18,7 @@ package org.jkiss.dbeaver.ext.firebird.edit;
 
 import org.jkiss.code.NotNull;
 import org.jkiss.dbeaver.DBException;
+import org.jkiss.dbeaver.ext.firebird.model.FireBirdTableColumn;
 import org.jkiss.dbeaver.ext.generic.edit.GenericTableColumnManager;
 import org.jkiss.dbeaver.ext.generic.model.GenericTableBase;
 import org.jkiss.dbeaver.ext.generic.model.GenericTableColumn;
@@ -46,6 +47,13 @@ public class FireBirdTableColumnManager extends GenericTableColumnManager
     implements DBEObjectRenamer<GenericTableColumn>, DBEObjectReorderer<GenericTableColumn>
 {
 
+    protected final ColumnModifier<GenericTableColumn> ComputedModifier = (monitor, column, sql, command) -> {
+        final String definition = ((FireBirdTableColumn) column).getComputedDefinition();
+        if (CommonUtils.isNotEmpty(definition)) {
+            sql.append(" GENERATED ALWAYS AS (").append(definition).append(")");
+        }
+    };
+
     @Override
     public StringBuilder getNestedDeclaration(DBRProgressMonitor monitor, GenericTableBase owner, DBECommandAbstract<GenericTableColumn> command, Map<String, Object> options)
     {
@@ -62,6 +70,10 @@ public class FireBirdTableColumnManager extends GenericTableColumnManager
 
     @Override
     protected ColumnModifier[] getSupportedModifiers(GenericTableColumn column, Map<String, Object> options) {
+        if (CommonUtils.isNotEmpty(((FireBirdTableColumn) column).getComputedDefinition())) {
+            // Only GENERATED ALWAYS AS is supported when field is computed
+            return new ColumnModifier[] {ComputedModifier};
+        }
         // According to SQL92 DEFAULT comes before constraints
         return new ColumnModifier[] {DataTypeModifier, DefaultModifier, NotNullModifier};
     }
@@ -72,7 +84,7 @@ public class FireBirdTableColumnManager extends GenericTableColumnManager
     @Override
     protected void addObjectModifyActions(DBRProgressMonitor monitor, DBCExecutionContext executionContext, List<DBEPersistAction> actionList, ObjectChangeCommand command, Map<String, Object> options)
     {
-        final GenericTableColumn column = command.getObject();
+        final FireBirdTableColumn column = (FireBirdTableColumn) command.getObject();
 
         String prefix = "ALTER TABLE " + DBUtils.getObjectFullName(column.getTable(), DBPEvaluationContext.DDL) + " ALTER COLUMN " + DBUtils.getQuotedIdentifier(column) + " ";
         String typeClause = column.getFullTypeName();
@@ -85,6 +97,12 @@ public class FireBirdTableColumnManager extends GenericTableColumnManager
             } else {
                 actionList.add(new SQLDatabasePersistAction("Set column default", prefix + "SET DEFAULT " + column.getDefaultValue()));
             }
+        }
+        if (command.getProperty("computedDefinition") != null) {
+            actionList.add(new SQLDatabasePersistAction(
+                "Set column computed definition",
+                prefix + "TYPE " + typeClause + " GENERATED ALWAYS AS (" + column.getComputedDefinition() + ")"
+            ));
         }
         if (command.getProperty(DBConstants.PROP_ID_DESCRIPTION) != null) {
             actionList.add(new SQLDatabasePersistAction("Set column comment", "COMMENT ON COLUMN " +
